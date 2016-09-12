@@ -10,11 +10,13 @@ lock = FileLock("/tmp/jasmin_discover")
 
 parser = argparse.ArgumentParser(description='Zabbix Jasmin LLD script')
 parser.add_argument('--hostname', required=True, help = "Jasmin's hostname (same configured in Zabbix hosts)")
+parser.add_argument('--jcli', required=False, help = "Jasmin's CLI address")
 parser.add_argument('-d', required=True, help = "users or smppcs")
 args = parser.parse_args()
 
 # Configuration
 jcli = {'host': args.hostname, # Must be the same configured in Zabbix hosts !
+        'jcli_host': args.jcli if args.jcli else args.hostname,
         'port': 8990,
         'username': 'jcliadmin',
         'password': 'jclipwd'}
@@ -83,7 +85,7 @@ def main():
         lock.acquire(timeout=5)
 
         # Connect and authenticate
-        tn = Telnet(jcli['host'], jcli['port'])
+        tn = Telnet(jcli['jcli_host'], jcli['port'])
         tn.set_option_negotiation_callback(process_option)
 
         # for telnet session debug:
