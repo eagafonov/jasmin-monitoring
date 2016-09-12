@@ -6,18 +6,26 @@
 import json, struct, time, argparse, re, socket, sys
 from lockfile import FileLock, LockTimeout, AlreadyLocked
 from telnetlib import Telnet, IAC, DO, DONT, WILL, WONT, SB, SE, TTYPE, ECHO
+import pprint
 
 # The script must not be executed simultaneously
 lock = FileLock("/tmp/jasmin_get")
 
 parser = argparse.ArgumentParser(description='Zabbix Jasmin status script')
 parser.add_argument('--hostname', required=True, help = "Jasmin's hostname (same configured in Zabbix hosts)")
+parser.add_argument('--jcli', required=False, help = "Jasmin's CLI address")
+parser.add_argument('--zabbix-server-host', default='localhost', help = "Zabbix server host")
+parser.add_argument('--zabbix-server-port', type=int, required=False, default=30551, help = "Zabbix server port")
+parser.add_argument('--test', action='store_const', required=False, default=False, const=True, help = "Test values. Do not send to server")
+
 args = parser.parse_args()
 
 # Configuration
-zabbix_host = 'monitoring.jookies.net'  # Zabbix Server IP
-zabbix_port = 30551                     # Zabbix Server Port
+zabbix_host = args.zabbix_server_host  # Zabbix Server IP
+zabbix_port = args.zabbix_server_port  # Zabbix Server Port
+
 jcli = {'host': args.hostname, # Must be the same configured in Zabbix hosts !
+        'jcli_host': args.jcli if args.jcli else args.hostname,
         'port': 8990,
         'username': 'jcliadmin',
         'password': 'jclipwd'}
@@ -240,7 +248,7 @@ def main():
         lock.acquire(timeout=5)
 
         # Connect and authenticate
-        tn = Telnet(jcli['host'], jcli['port'])
+        tn = Telnet(jcli['jcli_host'], jcli['port'])
 
         # for telnet session debug:
         #tn.set_debuglevel(1000)
@@ -319,7 +327,10 @@ def main():
 
         #print metrics
         # Send packet to zabbix
-        send_to_zabbix(metrics, zabbix_host, zabbix_port)
+        if args.test:
+            pprint.pprint(metrics)
+        else:
+            send_to_zabbix(metrics, zabbix_host, zabbix_port)
     except LockTimeout:
         print 'Lock not acquired, exiting'
     except AlreadyLocked:
